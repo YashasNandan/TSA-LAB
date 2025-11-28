@@ -1,0 +1,62 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+import numpy as np
+from statsmodels.tsa.ar_model import AutoReg
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.stattools import pacf
+
+url = '/content/AirPassengers.csv'
+df = pd.read_csv(url, parse_dates=['Month'], index_col='Month')
+data = df['#Passengers']
+
+train_size = int(len(data) * 0.8)
+train, test = data[:train_size], data[train_size:]
+
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 2, 1)
+plot_acf(train, lags=40, ax=plt.gca())
+plt.title('ACF of Training Data')
+
+plt.subplot(1, 2, 2)
+plot_pacf(train, lags=40, ax=plt.gca(), method='ywm')
+plt.title('PACF of Training Data')
+
+plt.tight_layout()
+plt.show()
+
+pacf_vals = pacf(train, nlags=20, method='ywm')
+n = len(train)
+threshold = 1.96 / np.sqrt(n)  
+
+significant_lags = [
+    lag for lag, val in enumerate(pacf_vals[1:], start=1)
+    if abs(val) > threshold
+]
+
+if significant_lags:
+    suggested_p = max(significant_lags)
+else:
+    suggested_p = 0
+
+print(f"Suggested AR order from PACF (cutoff) ≈ p = {suggested_p}")
+
+def calc_metrics(actual, predicted):
+    mae = mean_absolute_error(actual, predicted)
+    mse = mean_squared_error(actual, predicted)
+    rmse = np.sqrt(mse)
+    return mae, mse, rmse
+
+ar1_model = AutoReg(train, lags=1).fit()
+ar1_pred = ar1_model.predict(start=len(train), end=len(train)+len(test)-1)
+print(f"AR(1) AIC: {ar1_model.aic}")
+ar3_model = AutoReg(train, lags=3).fit()
+ar3_pred = ar3_model.predict(start=len(train), end=len(train)+len(test)-1)
+print(f"AR(3) AIC: {ar3_model.aic}")
+
+plt.plot(test.values, label='Actual')
+plt.plot(ar1_pred, label='AR(1)')
+plt.plot(ar3_pred, label='AR(3)')
+plt.legend()
+plt.title('AR Model Comparison')
+plt.show()
