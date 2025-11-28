@@ -1,0 +1,30 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from statsmodels.tsa.holtwinters import SimpleExpSmoothing, ExponentialSmoothing
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+df = pd.read_csv('/content/AirPassengers.csv', parse_dates=['Month'], index_col='Month')
+data = df['#Passengers']
+
+train = data[:int(len(data)*0.8)]
+test = data[int(len(data)*0.8):]
+
+ses_pred = SimpleExpSmoothing(train).fit().forecast(len(test))
+sma_pred = train.rolling(3).mean().iloc[-1]
+sma_forecast = pd.Series([sma_pred]*len(test), index=test.index)
+hw_pred = ExponentialSmoothing(train, seasonal='add', seasonal_periods=12).fit().forecast(len(test))
+
+def m(a,p):
+    return {'MAE':mean_absolute_error(a,p),'MSE':mean_squared_error(a,p),'RMSE':np.sqrt(mean_squared_error(a,p))}
+
+print("SES:", m(test, ses_pred))
+print("SMA:", m(test, sma_forecast))
+print("HW:", m(test, hw_pred))
+
+plt.plot(train, label='Train')
+plt.plot(test, label='Actual')
+plt.plot(ses_pred, label='SES')
+plt.plot(hw_pred, label='HW')
+plt.legend()
+plt.show()
