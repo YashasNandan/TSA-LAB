@@ -1,0 +1,35 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from statsmodels.tsa.arima.model import ARIMA
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+import numpy as np
+
+url = '/content/AirPassengers.csv'
+df = pd.read_csv(url, parse_dates=['Month'], index_col='Month')
+data = df['#Passengers']
+
+
+train_size = int(len(data) * 0.8)
+train, test = data[:train_size], data[train_size:]
+
+
+def calc_metrics(actual, predicted):
+    mae = mean_absolute_error(actual, predicted)
+    mse = mean_squared_error(actual, predicted)
+    rmse = np.sqrt(mse)
+    return mae, mse, rmse
+
+
+arma_model = ARIMA(train, order=(1, 0, 1))
+
+arma_fit = arma_model.fit()
+print(f"ARMA(1,1) Summary:\n{arma_fit.summary()}")
+
+arma_pred = arma_fit.forecast(steps=len(test))
+print("ARMA Metrics:", calc_metrics(test, arma_pred))
+
+plt.plot(test.values, label='Actual')
+plt.plot(arma_pred.values, label='ARMA(1,1)')
+plt.legend()
+plt.title('ARMA Model Forecast')
+plt.show()
